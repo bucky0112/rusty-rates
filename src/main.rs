@@ -1,26 +1,10 @@
-extern crate dialoguer;
-extern crate serde_json;
-extern crate tokio;
-
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{theme::ColorfulTheme, Select, Input};
 use dotenv::dotenv;
-// use serde_json::Value;
 use std::env;
-// use std::io;
-// use tokio::runtime::Runtime;
-
-// #[derive(Debug)]
-// enum Currency {
-//     USD,
-//     EUR,
-//     TWD,
-//     JPY,
-//     GBP,
-//     AUD,
-// }
+use tokio::runtime::Builder;
 
 fn main() {
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let rt = Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
@@ -33,25 +17,38 @@ fn main() {
 }
 
 async fn get_conversion_rate() -> Result<(), Box<dyn std::error::Error>> {
-    // 獲取使用者輸入
+    // 使用者輸入
     let currencies = ["TWD", "USD", "EUR", "JPY", "AUD", "KRW", "HKD"];
-    let base_currency_index = dialoguer::Select::new()
+    let base_currency_index = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("請選擇基準貨幣")
         .items(&currencies)
         .default(0)
-        .interact()?;
+        .interact()
+        .unwrap();
+    // let base_currency_index = dialoguer::Select::new()
+    //     .items(&currencies)
+    //     .default(0)
+    //     .interact()?;
     let base_currency = currencies[base_currency_index];
-    let amount: f64 = dialoguer::Input::new()
-        .with_prompt("請輸入金額")
+
+    // let amount: f64 = dialoguer::Input::new().with_prompt("請輸入金額").interact()?;
+    let amount: f64 = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("請輸入轉換金額")
         .interact()?;
 
-    let target_currencies = ["TWD", "USD", "EUR", "JPY"];
-    let target_currency_index = dialoguer::Select::new()
-        .items(&target_currencies)
+    let target_currency_index = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("請選擇目標貨幣")
+        .items(&currencies)
         .default(0)
-        .interact()?;
-    let target_currency = target_currencies[target_currency_index];
+        .interact()
+        .unwrap();
+    // let target_currency_index = dialoguer::Select::new()
+    //     .items(&currencies)
+    //     .default(0)
+    //     .interact()?;
+    let target_currency = currencies[target_currency_index];
 
-    // 構建請求 URL
+    // 請求 URL
     dotenv().ok();
     let api_key = env::var("API_KEY").expect("API_KEY must be set");
     let url = format!(
@@ -59,10 +56,10 @@ async fn get_conversion_rate() -> Result<(), Box<dyn std::error::Error>> {
         api_key, base_currency, target_currency
     );
 
-    // 發送請求並獲取響應
+    // 發送請求
     let response: serde_json::Value = reqwest::get(&url).await?.json().await?;
 
-    // 解析響應並計算轉換率
+    // // 解析並計算轉換率
     let eur_to_target = if let Some(rate) = response["rates"][&target_currency].as_f64() {
         rate
     } else {
@@ -80,7 +77,7 @@ async fn get_conversion_rate() -> Result<(), Box<dyn std::error::Error>> {
 
     // 顯示結果
     println!(
-        "{} {} = {} {}",
+        "{} {} = {:.2} {}",
         amount, base_currency, converted_amount, target_currency
     );
 
